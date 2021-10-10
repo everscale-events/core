@@ -10,11 +10,8 @@
                                               StateTtlConfig$StateVisibility)
            (org.apache.flink.api.common.time Time)
            (org.apache.flink.metrics MeterView)
-           (org.apache.flink.java StringKeySelector
-                                  CoProcessFunctionBase
+           (org.apache.flink.java CoProcessFunctionBase
                                   UniqueStrings
-                                  NotificationEvent
-                                  CommandEvent
                                   StringToLongMapStateDescriptor
                                   StringStateDescriptor
                                   UniqueStringsStateDescriptor)
@@ -31,7 +28,9 @@
            (java.util Arrays
                       ArrayList
                       Collections)
-           (java.io IOException)))
+           (java.io IOException)
+           (org.apache.flink.clojure.dto NotificationEvent
+                                         CommandEvent)))
 
 
 (defn- env-to-long [{:keys [name default]}]
@@ -40,15 +39,11 @@
        (catch Exception e default)))
 
 
-(deftype PojoFieldSelector [kw] StringKeySelector
-  (getKey [_ value] (-> value bean kw str)))
-
-
 ;;
 ;; SubscriptionsWiseNotificationsProcessor
 ;;
 ;; This is the place where the Control stream meets the QueueProvider stream:
-;; 
+;;
 ;; - receives commands
 ;; - receives encrypted notifications from the Queue Provider
 ;; - manages state needed for active subscriptions tracking and Queue Provider events deduplication
@@ -137,7 +132,7 @@
                                                 url
                                                 (.getHash event)
                                                 (.getNonce event)
-                                                (.getEncodedMessage event)))))))
+                                                (.getEncryptedMessage event)))))))
     (-> this .getUndeliverableNotificationsMeter .markEvent))) ; track undeliverable notifications
 
 (defn processor-getProducedType [_]
@@ -150,13 +145,13 @@
 ;; HttpAsyncClient 4, which doesn't support request re-execution.
 ;;
 
-;; 
+;;
 ;; HttpNotificationSender
-;; 
+;;
 ;; - sends HTTP notifications
 ;; - retries on failure (with exponential backoff)
 ;; - removes hopeless subscriptions
-;; 
+;;
 (gen-class
   :name HttpNotificationSender
   :extends org.apache.flink.java.RichAsyncFunctionBase
@@ -197,7 +192,7 @@
 
 (defn sender-open [this _]
   (->> (Executors/newSingleThreadScheduledExecutor)
-       ScheduledExecutorServiceAdapter. 
+       ScheduledExecutorServiceAdapter.
        (.setExecutor this))
   (let [ctx (.getRuntimeContext this)]
     (.setDeliveredNotificationsMeter
@@ -210,7 +205,7 @@
 ;;
 ;; Makes the whole stream non-blocking and allows sending HTTP notifications
 ;; to alive subscribers even when other subscribers are not so alive.
-;; 
+;;
 ;; Responsible for retries on failure of notification sending.
 ;;
 (defn sender-asyncInvoke [this input result-future]

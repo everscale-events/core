@@ -5,6 +5,9 @@ import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.MapState;
+import org.apache.flink.clojure.dto.SubscriptionEvent;
+import org.apache.flink.clojure.dto.QueueProviderEvent;
+import org.apache.flink.clojure.dto.NotificationEvent;
 
 /**
  * CoProcessFunctionBase

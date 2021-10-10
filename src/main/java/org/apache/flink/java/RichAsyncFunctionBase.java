@@ -3,6 +3,8 @@ package org.apache.flink.java;
 import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 import org.apache.flink.metrics.Meter;
+import org.apache.flink.clojure.dto.NotificationEvent;
+import org.apache.flink.clojure.dto.CommandEvent;
 
 /**
  * RichAsyncFunctionBase

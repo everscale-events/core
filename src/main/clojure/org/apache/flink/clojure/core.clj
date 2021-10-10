@@ -1,4 +1,5 @@
 (ns org.apache.flink.clojure.core
+  (:require [org.apache.flink.clojure.dto :refer :all])
   (:require [org.apache.flink.clojure.impl :refer :all])
   (:import (org.apache.flink.core.fs Path)
            (org.apache.flink.streaming.api CheckpointingMode)
@@ -15,9 +16,9 @@
            (org.apache.flink.connector.kafka.source KafkaSourceOfStrings)
            (org.apache.flink.connector.kafka.source.enumerator.initializer OffsetsInitializer)
            (org.apache.flink.connector.kafka.source.reader.deserializer KafkaRecordDeserializationSchema)
-           (org.apache.flink.java QueueProviderEvent
-                                  CommandEvent))
-  (:use [clojure.string :only [split join]])
+           (org.apache.flink.java StringKeySelector)
+           (org.apache.flink.clojure.dto CommandEvent
+                                         QueueProviderEvent))
   (:gen-class :main true))
 
 (defn build-kafka-source
@@ -57,7 +58,11 @@
                    .build)
         use-correlation-id false
         deserialization-schema (reify DeserializationSchema
-                                 (deserialize [_ message] (-> message String. CommandEvent/fromString))
+                                 (deserialize [_ message]
+                                   (let [[hash t op & extra] (-> message String. (.split ","))
+                                         args (doto (java.util.ArrayList.)
+                                                    (.addAll (or extra [])))]
+                                     (CommandEvent. hash (Long/parseLong t) op args)))
                                  (isEndOfStream [_ _] false)
                                  (getProducedType [_] (TypeInformation/of (class CommandEvent))))]
     (RMQSource. config queue use-correlation-id deserialization-schema)))
@@ -97,11 +102,13 @@
                                               "Notifications Stream | Kafka Source"))
         amqp-opts {:amqp-uri (or (System/getenv "AMQP_URI") "amqp://rabbitmq.ton.events")
                    :queue "ton.events.control"}
+        hash-selector (reify StringKeySelector
+                        (getKey [_ event] (.getHash event)))
         control-stream (-> flink-env
                            (.addSource (build-rmq-source amqp-opts)
                                        "Control Stream | RabbitMQ Source"))
         combined-stream (-> (.connect control-stream notifications-stream)
-                            (.keyBy (->PojoFieldSelector :hash) (->PojoFieldSelector :hash))
+                            (.keyBy hash-selector hash-selector)
                             (.process (SubscriptionsWiseNotificationsProcessor.)))
         async-stream (-> (AsyncDataStream/unorderedWait combined-stream
                                                         (HttpNotificationSender.)
