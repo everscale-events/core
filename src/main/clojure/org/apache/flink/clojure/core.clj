@@ -14,7 +14,8 @@
            (org.apache.flink.api.common.eventtime WatermarkStrategy)
            (org.apache.flink.connector.kafka.source KafkaSourceOfStrings)
            (org.apache.flink.connector.kafka.source.enumerator.initializer OffsetsInitializer)
-           (org.apache.flink.java QueueProviderDeserializationSchema
+           (org.apache.flink.connector.kafka.source.reader.deserializer KafkaRecordDeserializationSchema)
+           (org.apache.flink.java QueueProviderEvent
                                   CommandEvent))
   (:use [clojure.string :only [split join]])
   (:gen-class :main true))
@@ -27,7 +28,18 @@
       (.setTopics (into-array String [topic]))
       (.setGroupId (or (System/getenv "QUEUE_PROVIDER_GROUPID")
                        "ton.events"))
-      (.setDeserializer (QueueProviderDeserializationSchema.))
+      (.setDeserializer (reify KafkaRecordDeserializationSchema
+                          (deserialize [_ record out]
+                            (let [idempotency-key (-> record .key String.)
+                                  timestamp (.timestamp record)
+                                  [hash nonce encrypted-message] (-> record .value String. (.split " "))
+                                  event (QueueProviderEvent. idempotency-key
+                                                             hash
+                                                             nonce
+                                                             encrypted-message
+                                                             timestamp)]
+                              (.collect out event)))
+                          (getProducedType [_] (TypeInformation/of (class QueueProviderEvent)))))
       (.setStartingOffsets (OffsetsInitializer/latest))
       (.setProperty "partition.discovery.interval.ms" "60000")
       (.setProperty "security.protocol" "SASL_PLAINTEXT")
