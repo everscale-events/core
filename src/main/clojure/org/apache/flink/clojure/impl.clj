@@ -114,6 +114,7 @@
       "remove-subscription"
       (let [[data] (.getArgs event)]
         (when (.remove subscriptions data)
+          (-> this .getSubscriptionsCounter .dec)
           (-> this .getSubscriptions (.update subscriptions))))
       :noop)))
 
