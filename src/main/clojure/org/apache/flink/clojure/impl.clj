@@ -122,19 +122,20 @@
 ;; Queue Provider events with no destination (e.g., unexisting or unresponsive) are being filtered out here.
 ;;
 (defn processor-processElement2 [this event _ out]
-  (if-let [subscriptions (-> this .getSubscriptions .value)]
-    (let [notifications-state (.getNotifications this)
-          idempotency-key (.getIdempotencyKey event)]
-      (if-let [n (-> notifications-state (.get idempotency-key))]
-        (-> notifications-state (.put idempotency-key (inc n))) ; update it just to reset TTL
-        (do (-> notifications-state (.put idempotency-key 1))
-            (doseq [url subscriptions]
-              (.collect out (NotificationEvent. (-> this .getSecret .value)
-                                                url
-                                                (.getHash event)
-                                                (.getNonce event)
-                                                (.getEncryptedMessage event)))))))
-    (-> this .getUndeliverableNotificationsMeter .markEvent))) ; track undeliverable notifications
+  (let [subscriptions (-> this .getSubscriptions .value)]
+    (if (seq subscriptions)
+      (let [notifications-state (.getNotifications this)
+            idempotency-key (.getIdempotencyKey event)]
+        (if-let [n (-> notifications-state (.get idempotency-key))]
+          (-> notifications-state (.put idempotency-key (inc n))) ; update it just to reset TTL
+          (do (-> notifications-state (.put idempotency-key 1))
+              (doseq [url subscriptions]
+                (.collect out (NotificationEvent. (-> this .getSecret .value)
+                                                  url
+                                                  (.getHash event)
+                                                  (.getNonce event)
+                                                  (.getEncryptedMessage event)))))))
+      (-> this .getUndeliverableNotificationsMeter .markEvent)))) ; track undeliverable notifications
 
 (defn processor-getProducedType [_]
   (TypeInformation/of (class NotificationEvent)))
