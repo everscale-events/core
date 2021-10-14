@@ -88,7 +88,7 @@
 (defn -main [& args]
   (let [flink-env (doto (StreamExecutionEnvironment/getExecutionEnvironment)
                         (.enableCheckpointing 300000)
-                        ; (.setParallelism 4)
+                        (.setParallelism 8)
                         (#(doto (.getCheckpointConfig %)
                                 (.setCheckpointingMode CheckpointingMode/EXACTLY_ONCE)
                                 (.setMinPauseBetweenCheckpoints 60000)
@@ -99,21 +99,25 @@
         notifications-stream (-> flink-env
                                  (.fromSource (build-kafka-source (get-queue-provider-creds))
                                               (WatermarkStrategy/noWatermarks)
-                                              "Notifications Stream | Kafka Source"))
+                                              "Notifications Stream | Kafka Source")
+                                 (.uid "a604e4cd-5247-4f8d-8255-d9e3c036622e"))
         amqp-opts {:amqp-uri (or (System/getenv "AMQP_URI") "amqp://rabbitmq.ton.events")
                    :queue "ton.events.control"}
         hash-selector (reify StringKeySelector
                         (getKey [_ event] (.getHash event)))
         control-stream (-> flink-env
                            (.addSource (build-rmq-source amqp-opts)
-                                       "Control Stream | RabbitMQ Source"))
+                                       "Control Stream | RabbitMQ Source")
+                           (.uid "9efee4c9-788c-43d8-8793-1d7adcac6be9"))
         combined-stream (-> (.connect control-stream notifications-stream)
                             (.keyBy hash-selector hash-selector)
-                            (.process (SubscriptionsWiseNotificationsProcessor.)))
+                            (.process (SubscriptionsWiseNotificationsProcessor.))
+                            (.uid "ee973088-68b8-490a-b9c4-bdb9992daeb5"))
         async-stream (-> (AsyncDataStream/unorderedWait combined-stream
                                                         (HttpNotificationSender.)
                                                         ; TODO: tune it in production
                                                         1 java.util.concurrent.TimeUnit/HOURS)
+                         (.uid "2c988d3b-d6f8-4155-9f8f-a2acf5431e60")
                          (.addSink (build-rmq-sink amqp-opts))
                          (.name "Control Stream | RMQ Sink"))]
 
