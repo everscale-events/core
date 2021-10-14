@@ -184,8 +184,8 @@
         throw-unless-200 (fn [^HttpResponse res ^HttpContext ctx]
                            (when-not (-> res .getStatusLine .getStatusCode (= 200))
                              (throw (IOException. "Not a droid you're looking for..."))))]
-    (http/post url {:socket-timeout 5000
-                    :connection-timeout 5000
+    (http/post url {:socket-timeout 60000
+                    :connection-timeout 60000
                     :content-type "text/plain"
                     :headers {:x-te-signature signature}
                     :body response

@@ -87,12 +87,12 @@
 
 (defn -main [& args]
   (let [flink-env (doto (StreamExecutionEnvironment/getExecutionEnvironment)
-                        (.enableCheckpointing 1000)
+                        (.enableCheckpointing 300000)
                         ; (.setParallelism 4)
                         (#(doto (.getCheckpointConfig %)
                                 (.setCheckpointingMode CheckpointingMode/EXACTLY_ONCE)
-                                (.setMinPauseBetweenCheckpoints 500)
-                                (.setCheckpointTimeout 60000)
+                                (.setMinPauseBetweenCheckpoints 60000)
+                                (.setCheckpointTimeout 300000)
                                 (.setMaxConcurrentCheckpoints 1)
                                 (.enableExternalizedCheckpoints CheckpointConfig$ExternalizedCheckpointCleanup/RETAIN_ON_CANCELLATION))))
 
