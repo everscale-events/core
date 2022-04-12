@@ -28,7 +28,7 @@
                                 (throw (Exception. "QUEUE_PROVIDER_ADDRESS environment variable must be provided"))))
       (.setTopics (into-array String [topic]))
       (.setGroupId (or (System/getenv "QUEUE_PROVIDER_GROUPID")
-                       "ton.events"))
+                       "everscale.events"))
       (.setDeserializer (reify KafkaRecordDeserializationSchema
                           (deserialize [_ record out]
                             (let [idempotency-key (-> record .key String.)
@@ -101,8 +101,8 @@
                                               (WatermarkStrategy/noWatermarks)
                                               "Notifications Stream | Kafka Source")
                                  (.uid "a604e4cd-5247-4f8d-8255-d9e3c036622e"))
-        amqp-opts {:amqp-uri (or (System/getenv "AMQP_URI") "amqp://rabbitmq.ton.events")
-                   :queue "ton.events.control"}
+        amqp-opts {:amqp-uri (or (System/getenv "AMQP_URI") "amqp://rabbitmq.everscale.events")
+                   :queue "everscale.events.control"}
         hash-selector (reify StringKeySelector
                         (getKey [_ event] (.getHash event)))
         control-stream (-> flink-env
@@ -121,5 +121,5 @@
                          (.addSink (build-rmq-sink amqp-opts))
                          (.name "Control Stream | RMQ Sink"))]
 
-    (.execute flink-env "ton.events")))
+    (.execute flink-env "everscale.events")))
 

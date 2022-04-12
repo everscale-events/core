@@ -1,4 +1,4 @@
-(defproject ton-events "1.0.0-SNAPSHOT"
+(defproject everscale-events "1.0.0-SNAPSHOT"
   :description "HTTP Notifications Provider for the Free TON network"
   :license {:name "GPL, Version 3.0"
             :url "https://www.gnu.org/licenses/gpl-3.0.txt"}
